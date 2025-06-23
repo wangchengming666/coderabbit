@@ -1,0 +1,129 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: broadcast-demo
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      batch-size: 65536
+      linger-ms: 10
+      buffer-memory: 33554432
+      compression-type: lz4
+      retries: 3
+      acks: 1
+      properties:
+        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true
+    
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: solana-broadcast-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      fetch-min-size: 1048576
+      fetch-max-wait: 500
+      max-poll-records: 100
+      properties:
+        spring.json.trusted.packages: "com.demo.solana.dto"
+    
+    listener:
+      ack-mode: manual-immediate
+      concurrency: 10
+
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+# Solana配置
+solana:
+  rpc:
+    mainnet-url: https://api.mainnet-beta.solana.com
+    devnet-url: https://api.devnet.solana.com
+    testnet-url: https://api.testnet.solana.com
+    default-network: devnet
+    timeout: 30000
+    max-retries: 3
+    connection-pool:
+      max-total: 50
+      max-per-route: 20
+
+# 业务配置
+broadcast:
+  kafka:
+    topic:
+      transaction-request: solana-transaction-request
+      transaction-result: solana-transaction-result
+    consumer:
+      thread-pool-size: 20
+      queue-capacity: 1000
+  
+  performance:
+    # 每秒最大处理交易数
+    max-tps: 1000
+    # 批量处理大小
+    batch-size: 50
+    # 批量处理等待时间(毫秒)
+    batch-timeout: 100
+
+  # 安全配置
+  security:
+    # API密钥列表（生产环境应从环境变量或密钥管理服务获取）
+    api-keys:
+      - demo-api-key-1
+      - demo-api-key-2
+    
+    # IP白名单（为空则允许所有IP）
+    ip-whitelist:
+      - 127.0.0.1
+      - localhost
+      # - 192.168.1.100
+    
+    # 请求超时时间（分钟）
+    request-timeout-minutes: 5
+    
+    # 限流配置
+    rate-limit:
+      enabled: true
+      requests-per-minute: 100
+      requests-per-hour: 1000
+
+# 日志配置
+logging:
+  level:
+    com.demo.solana: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
+  file:
+    name: logs/broadcast-demo.log
+    max-size: 100MB
+    max-history: 30
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always 
